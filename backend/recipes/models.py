@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
+from django.db.models.constraints import UniqueConstraint
 
 User = get_user_model()
 
@@ -68,3 +69,83 @@ class Recipe(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class IngredientInRecipe(models.model):
+    ingredient = models.ForeignKey(
+        "Ингредиент рецепта", Ingredient, on_delete=models.CASCADE
+    )
+    recipe = models.ForeignKey(
+        "Рецепт",
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name="ingredient_in_recipe",
+    )
+    amount = models.PositiveSmallIntegerField(
+        "Количество",
+        validators=[MinValueValidator(1, message="Минимальное количество 1!")],
+    )
+
+    class Meta:
+        verbose_name = "Ингредиент рецепта"
+        verbose_name_plural = "Ингредиенты рецепта"
+
+    def __str__(self):
+        return (
+            f"{self.ingredient.name} ({self.ingredient.measurement_unit})"
+            f" - {self.amount} "
+        )
+
+
+class Favourite(models.Model):
+    user = models.ForeignKey(
+        "Пользователь",
+        User,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+    recipe = models.ForeignKey(
+        "Рецепт",
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name="favorites",
+    )
+
+    class Meta:
+        verbose_name = "Избранное"
+        verbose_name_plural = "Избранное"
+        constraints = [
+            UniqueConstraint(
+                fields=["user", "recipe"], name="unique_favourite"
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.user} добавил "{self.recipe}" в Избранное'
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        "Пользователь",
+        User,
+        on_delete=models.CASCADE,
+        related_name="shopping_cart",
+    )
+    recipe = models.ForeignKey(
+        "Рецепт",
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name="shopping_cart",
+    )
+
+    class Meta:
+        verbose_name = "Корзина покупок"
+        verbose_name_plural = "Корзина покупок"
+        constraints = [
+            UniqueConstraint(
+                fields=["user", "recipe"], name="unique_shopping_cart"
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.user} добавил "{self.recipe}" в Корзину покупок'
