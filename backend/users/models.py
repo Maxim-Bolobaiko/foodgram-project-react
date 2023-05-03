@@ -10,8 +10,15 @@ class User(AbstractUser):
         "first_name",
         "last_name",
     ]
+    first_name = models.CharField(max_length=254, verbose_name="Имя")
+    last_name = models.CharField(max_length=254, verbose_name="Фамилия")
+    username = models.CharField(
+        verbose_name="username",
+        max_length=254,
+        unique=True,
+    )
     email = models.EmailField(
-        "email address",
+        verbose_name="email address",
         max_length=254,
         unique=True,
     )
@@ -28,13 +35,13 @@ class User(AbstractUser):
 class Following(models.Model):
     follower = models.ForeignKey(
         User,
-        related_name="followings",
+        related_name="follower",
         verbose_name="Подписчик",
         on_delete=models.CASCADE,
     )
     following = models.ForeignKey(
         User,
-        related_name="followers",
+        related_name="following",
         verbose_name="Автор",
         on_delete=models.CASCADE,
     )
