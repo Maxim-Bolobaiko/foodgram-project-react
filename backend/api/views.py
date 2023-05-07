@@ -1,5 +1,8 @@
+from django.db.models import Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from recipes.models import (
     Favourite,
     Ingredient,
@@ -9,6 +12,7 @@ from recipes.models import (
     Tag,
 )
 from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import (
     IsAuthenticated,
     IsAuthenticatedOrReadOnly,
@@ -25,6 +29,7 @@ from .serializers import (
     RecipeCreateSerializer,
     RecipeReadSerializer,
     ShoppingCartSerializer,
+    SubscribeSerializer,
     TagSerializer,
     UserSerializer,
 )
@@ -125,5 +130,33 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
 
-class UserViewSet(viewsets.ModelViewSet):
-    pass
+class UserViewSet(UserViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    pagination_class = CustomPagination
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        permission_classes=[IsAuthenticated],
+    )
+    def subscribe(self, request, id):
+        follower = request.user
+        following = get_object_or_404(User, pk=id)
+
+        if request.method == "POST":
+            serializer = SubscribeSerializer(
+                follower, data=request.data, context={"request": request}
+            )
+            serializer.is_valid(raise_exception=True)
+            Following.objects.create(follower=follower, following=following)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def subscribtions(self, request):
+        user = request.user
+        queryset = User.objects.filter(followign__user=user)
+        pages = self.paginate_queryset(queryset)
+        serializer = SubscribeSerializer(
+            pages, many=True, context={"request": request}
+        )
+        return self.get_paginated_response(serializer.data)

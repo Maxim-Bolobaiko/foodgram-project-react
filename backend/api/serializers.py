@@ -33,3 +33,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     pass
+
+
+class SubscribeSerializer(serializers.ModelSerializer):
+    pass
