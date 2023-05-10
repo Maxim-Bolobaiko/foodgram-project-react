@@ -44,6 +44,7 @@ class TagViewSet(viewsets.ModelViewSet):
 
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
     permission_classes = IsAuthenticatedOrReadOnly
     filter_backends = IngredientFilter
     search_fields = ("^name",)
