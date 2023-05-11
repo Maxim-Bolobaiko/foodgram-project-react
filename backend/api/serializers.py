@@ -1,6 +1,13 @@
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from recipes.models import Ingredient, IngredientInRecipe, Recipe, Tag
-from rest_framework import serializers
+from recipes.models import (
+    Favorite,
+    Ingredient,
+    IngredientInRecipe,
+    Recipe,
+    ShoppingCart,
+    Tag,
+)
+from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import Base64ImageField, SerializerMethodField
 from rest_framework.serializers import PrimaryKeyRelatedField
@@ -34,6 +41,44 @@ class UserCreateSerializer(UserCreateSerializer):
         fields = ("first_name", "last_name", "username", "email", "password")
 
 
+class FollowingSerializer(UserSerializer):
+    recipes_count = SerializerMethodField()
+    recipes = SerializerMethodField()
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ("recipes_count", "recipes")
+        read_only_fields = ("first_name", "last_name", "username", "email")
+
+    def validate(self, data):
+        follower = self.context.get("request").user
+        following = self.instance
+
+        if Following.objects.filter(
+            follower=follower, following=following
+        ).exists():
+            raise ValidationError(
+                detail="Вы уже подписались!", code=status.HTTP_400_BAD_REQUEST
+            )
+        if follower == following:
+            raise ValidationError(
+                detail="Вы не можете подписаться на самого себя!",
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+        return data
+
+    def get_recipes_count(self, obj):
+        return obj.recipes.count()
+
+    def get_recipes(self, obj):
+        request = self.context.get("request")
+        limit = request.GET.get("recipes_limit")
+        recipes = obj.recipes.all()
+        if limit:
+            recipes = recipes[: int(limit)]
+        serializer = RecipeShortSerializer(recipes, many=True, read_only=True)
+        return serializer.data
+
+
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
@@ -44,15 +89,6 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = "__all__"
-
-
-class FollowingSerializer(UserSerializer):
-    recipes_count = SerializerMethodField()
-    recipes = SerializerMethodField()
-
-    class Meta(UserSerializer.Meta):
-        fields = UserSerializer.Meta.fields + ("recipes_count", "recipes")
-        read_only_fields = ("first_name", "last_name", "username", "email")
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
@@ -210,8 +246,40 @@ class RecipeShortSerializer(serializers.ModelSerializer):
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
-    pass
+    class Meta:
+        model = Favorite
+        fields = (
+            "user",
+            "recipe",
+        )
+
+    def validate(self, data):
+        user = data["user"]
+        if user.favorites.filter(recipe=data["recipe"]).exists():
+            raise ValidationError("Рецепт уже добавлен в избранное!")
+        return data
+
+    def to_representation(self, instance):
+        return RecipeShortSerializer(
+            instance.recipe, context={"request": self.context.get("request")}
+        ).data
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
-    pass
+    class Meta:
+        model = ShoppingCart
+        fields = (
+            "user",
+            "recipe",
+        )
+
+    def validate(self, data):
+        user = data["user"]
+        if user.shopping_list.filter(recipe=data["recipe"]).exists():
+            raise ValidationError("Рецепт уже добавлен в корзину")
+        return data
+
+    def to_representation(self, instance):
+        return RecipeShortSerializer(
+            instance.recipe, context={"request": self.context.get("request")}
+        ).data
