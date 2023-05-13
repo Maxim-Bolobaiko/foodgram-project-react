@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, render
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
 from recipes.models import (
-    Favourite,
+    Favorite,
     Ingredient,
     IngredientInRecipe,
     Recipe,
@@ -25,11 +25,11 @@ from .pagination import CustomPagination
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (
     FavoriteSerializer,
+    FollowingSerializer,
     IngredientSerializer,
     RecipeCreateSerializer,
     RecipeReadSerializer,
     ShoppingCartSerializer,
-    SubscribeSerializer,
     TagSerializer,
     UserSerializer,
 )
@@ -76,10 +76,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @add_to_favorite.mapping.delete
     def delete_from_favorite(self, request, pk):
         get_object_or_404(
-            Favourite,
+            Favorite,
             user=request.user,
             recipe=get_object_or_404(Recipe, id=pk),
         ).delete()
@@ -99,7 +98,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    @add_to_shopping_cart.mapping.delete
     def delete_from_shopping_cart(self, request, pk):
         get_object_or_404(
             ShoppingCart,
@@ -146,7 +144,7 @@ class UserViewSet(UserViewSet):
         following = get_object_or_404(User, pk=id)
 
         if request.method == "POST":
-            serializer = SubscribeSerializer(
+            serializer = FollowingSerializer(
                 follower, data=request.data, context={"request": request}
             )
             serializer.is_valid(raise_exception=True)
@@ -157,7 +155,7 @@ class UserViewSet(UserViewSet):
         user = request.user
         queryset = User.objects.filter(followign__user=user)
         pages = self.paginate_queryset(queryset)
-        serializer = SubscribeSerializer(
+        serializer = FollowingSerializer(
             pages, many=True, context={"request": request}
         )
         return self.get_paginated_response(serializer.data)
