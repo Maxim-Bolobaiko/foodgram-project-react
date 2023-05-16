@@ -58,7 +58,7 @@ class Recipe(models.Model):
         "Время приготовления",
         validators=[MinValueValidator(1, message="Минимальное значение 1!")],
     )
-    tag = models.ManyToManyField(
+    tags = models.ManyToManyField(
         Tag,
         related_name="recipe",
         verbose_name="Теги рецепта",

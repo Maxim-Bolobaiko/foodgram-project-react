@@ -39,7 +39,7 @@ class RecipeAdmin(admin.ModelAdmin):
     list_filter = (
         "author",
         "name",
-        "tag",
+        "tags",
     )
 
     def recipe_in_favorite(self, obj):

@@ -22,7 +22,7 @@ from users.models import Following, User
 
 from .filters import IngredientFilter, RecipeFilter
 from .pagination import CustomPagination
-from .permissions import IsAuthorOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAuthorOrReadOnly
 from .serializers import (
     FavoriteSerializer,
     FollowingSerializer,
@@ -38,23 +38,24 @@ from .serializers import (
 class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    permission_classes = IsAuthenticatedOrReadOnly
+    permission_classes = (IsAdminOrReadOnly,)
     pagination_class = None
 
 
 class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = IsAuthenticatedOrReadOnly
-    filter_backends = IngredientFilter
+    permission_classes = (IsAuthenticatedOrReadOnly,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
     search_fields = ("^name",)
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
-    permission_classes = IsAuthorOrReadOnly
+    permission_classes = (IsAuthorOrReadOnly,)
     pagination_class = CustomPagination
-    filter_backends = DjangoFilterBackend
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
 
     def get_serializer_class(self):
@@ -64,10 +65,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=True,
-        methods=["post", "delete"],
+        methods=("POST",),
         permission_classes=[IsAuthenticated],
     )
-    def add_to_favorite(self, request, pk):
+    def favorite(self, request, pk):
         context = {"request": request}
         recipe = get_object_or_404(Recipe, id=pk)
         data = {"user": request.user.id, "recipe": recipe.id}
@@ -76,6 +77,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @favorite.mapping.delete
     def delete_from_favorite(self, request, pk):
         get_object_or_404(
             Favorite,
@@ -86,10 +88,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=True,
-        methods=["post", "delete"],
+        methods=("POST",),
         permission_classes=[IsAuthenticated],
     )
-    def add_to_shopping_cart(self, request, pk):
+    def shopping_cart(self, request, pk):
         context = {"request": request}
         recipe = get_object_or_404(Recipe, id=pk)
         data = {"user": request.user.id, "recipe": recipe.id}
@@ -98,6 +100,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @shopping_cart.mapping.delete
     def delete_from_shopping_cart(self, request, pk):
         get_object_or_404(
             ShoppingCart,
@@ -145,17 +148,30 @@ class UserViewSet(UserViewSet):
 
         if request.method == "POST":
             serializer = FollowingSerializer(
-                follower, data=request.data, context={"request": request}
+                following, data=request.data, context={"request": request}
             )
             serializer.is_valid(raise_exception=True)
             Following.objects.create(follower=follower, following=following)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def subscribtions(self, request):
+        if request.method == "DELETE":
+            subscription = get_object_or_404(
+                Following, follower=follower, following=following
+            )
+            subscription.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, permission_classes=[IsAuthenticated])
+    def subscriptions(self, request):
         user = request.user
-        queryset = User.objects.filter(followign__user=user)
-        pages = self.paginate_queryset(queryset)
+        queryset = User.objects.filter(following__follower=user)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = FollowingSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
         serializer = FollowingSerializer(
-            pages, many=True, context={"request": request}
+            queryset, many=True, context={"request": request}
         )
-        return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)

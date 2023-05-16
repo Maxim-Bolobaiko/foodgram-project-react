@@ -1,3 +1,5 @@
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from recipes.models import (
@@ -10,7 +12,7 @@ from recipes.models import (
 )
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import SerializerMethodField
+from rest_framework.fields import IntegerField, SerializerMethodField
 from rest_framework.serializers import PrimaryKeyRelatedField
 from users.models import Following, User
 
@@ -52,7 +54,10 @@ class FollowingSerializer(UserSerializer):
 
     def validate(self, data):
         follower = self.context.get("request").user
-        following = self.instance
+        following_id = (
+            self.context.get("request").parser_context.get("kwargs").get("id")
+        )
+        following = get_object_or_404(User, id=following_id)
 
         if Following.objects.filter(
             follower=follower, following=following
@@ -68,12 +73,12 @@ class FollowingSerializer(UserSerializer):
         return data
 
     def get_recipes_count(self, obj):
-        return obj.recipes.count()
+        return obj.recipe.count()
 
     def get_recipes(self, obj):
         request = self.context.get("request")
         limit = request.GET.get("recipes_limit")
-        recipes = obj.recipes.all()
+        recipes = obj.recipe.all()
         if limit:
             recipes = recipes[: int(limit)]
         serializer = RecipeShortSerializer(recipes, many=True, read_only=True)
@@ -93,16 +98,14 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
-    ingredient_id = serializers.PrimaryKeyRelatedField(
-        queryset=Ingredient.objects.all()
-    )
+    id = IntegerField()
     name = serializers.ReadOnlyField(source="ingredient.name")
     measurement_unit = serializers.ReadOnlyField(
         source="ingredient.measurement_unit"
     )
 
     class Meta:
-        model = Ingredient
+        model = IngredientInRecipe
         fields = (
             "id",
             "name",
@@ -204,18 +207,18 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             tags_list.append(tag)
         return tags
 
-    @staticmethod
-    def create_ingredients(recipe, ingredients):
-        ingredient_list = []
-        for ingredient in ingredients:
-            ingredient_list.append(
+    @transaction.atomic
+    def create_ingredients(self, recipe, ingredients):
+        IngredientInRecipe.objects.bulk_create(
+            [
                 IngredientInRecipe(
-                    ingredient=ingredient.pop("id"),
-                    amount=ingredient.pop("amount"),
+                    ingredient=Ingredient.objects.get(pk=ingredient["id"]),
                     recipe=recipe,
+                    amount=ingredient["amount"],
                 )
-            )
-        IngredientInRecipe.objects.bulk_create(ingredient_list)
+                for ingredient in ingredients
+            ]
+        )
 
     def create(self, validated_data):
         request = self.context.get("request", None)
@@ -276,7 +279,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         user = data["user"]
-        if user.shopping_list.filter(recipe=data["recipe"]).exists():
+        if user.shopping_cart.filter(recipe=data["recipe"]).exists():
             raise ValidationError("Рецепт уже добавлен в корзину")
         return data
 
