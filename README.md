@@ -1,3 +1,5 @@
+![workflow](https://github.com/Maxim-Bolobaiko/foodgram-project-react/actions/workflows/foodgram_workflow.yml/badge.svg)
+
 # Foodgram, «Продуктовый помощник»
 Сайт доступен [вот тут.](http://51.250.29.120/)
 
