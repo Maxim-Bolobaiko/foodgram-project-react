@@ -9,7 +9,7 @@ services:
       - ./.env  
 
   backend:
-    image: maximbolobaiko/foodgram_back:v1.0
+    image: maximbolobaiko/foodgram_back:latest
     restart: always
     volumes:
       - static_value:/app/static/
@@ -20,7 +20,7 @@ services:
       - ./.env
   
   frontend:
-    image: maximbolobaiko/foodgram_front:v1.0
+    image: maximbolobaiko/foodgram_front:latest
     volumes:
       - ../frontend/:/app/result_build/
     depends_on:
