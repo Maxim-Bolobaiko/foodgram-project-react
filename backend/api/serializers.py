@@ -207,18 +207,17 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             tags_list.append(tag)
         return tags
 
-    @transaction.atomic
     def create_ingredients(self, recipe, ingredients):
-        IngredientInRecipe.objects.bulk_create(
-            [
+        ingredient_list = []
+        for ingredient in ingredients:
+            ingredient_list.append(
                 IngredientInRecipe(
-                    ingredient=Ingredient.objects.get(pk=ingredient["id"]),
-                    recipe=recipe,
+                    ingredient=Ingredient.objects.get(id=ingredient["id"]),
                     amount=ingredient["amount"],
+                    recipe=recipe,
                 )
-                for ingredient in ingredients
-            ]
-        )
+            )
+        IngredientInRecipe.objects.bulk_create(ingredient_list)
 
     def create(self, validated_data):
         request = self.context.get("request", None)
@@ -231,6 +230,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.tags.clear()
+        instance.ingredients.clear()
         IngredientInRecipe.objects.filter(recipe=instance).delete()
         instance.tags.set(validated_data.pop("tags"))
         ingredients = validated_data.pop("ingredients")
