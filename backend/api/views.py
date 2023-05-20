@@ -1,16 +1,7 @@
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from recipes.models import (
-    Favorite,
-    Ingredient,
-    IngredientInRecipe,
-    Recipe,
-    ShoppingCart,
-    Tag,
-)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import (
@@ -18,7 +9,6 @@ from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
-from users.models import Following, User
 
 from .filters import IngredientFilter, RecipeFilter
 from .pagination import CustomPagination
@@ -33,6 +23,9 @@ from .serializers import (
     TagSerializer,
     UserSerializer,
 )
+from .utils import get_shopping_list
+from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
+from users.models import Following, User
 
 
 class TagViewSet(viewsets.ModelViewSet):
@@ -111,21 +104,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["GET"])
     def download_shopping_cart(self, request):
-        ingredients = (
-            IngredientInRecipe.objects.filter(
-                recipe__shopping_cart__user=request.user
-            )
-            .values("ingredient__name", "ingredient__measurement_unit")
-            .annotate(amount=Sum("amount"))
-        )
-
-        shopping_list = "Список покупок."
-        for ingredient in ingredients:
-            shopping_list += (
-                f"\n{ingredient['ingredient__name']} "
-                f"({ingredient['ingredient__measurement_unit']}) - "
-                f"{ingredient['amount']}"
-            )
+        shopping_list = get_shopping_list(request.user)
         file = "Список покупок.txt"
         response = HttpResponse(shopping_list, content_type="text/plain")
         response["Content-Disposition"] = f"attachment; filename={file}"

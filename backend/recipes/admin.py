@@ -10,6 +10,12 @@ from .models import (
 )
 
 
+class IngredientInline(admin.TabularInline):
+    model = IngredientInRecipe
+    extra = 3
+    min_num = 1
+
+
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
     list_display = (
@@ -26,6 +32,7 @@ class IngredientAdmin(admin.ModelAdmin):
         "measurement_unit",
     )
     list_filter = ("name",)
+    search_fields = ("name",)
 
 
 @admin.register(Recipe)
@@ -40,6 +47,11 @@ class RecipeAdmin(admin.ModelAdmin):
         "author",
         "name",
         "tags",
+    )
+    search_fields = (
+        "name",
+        "author__username",
+        "tags__name",
     )
 
     def recipe_in_favorite(self, obj):
