@@ -53,6 +53,7 @@ class RecipeAdmin(admin.ModelAdmin):
         "author__username",
         "tags__name",
     )
+    inlines = (IngredientInline,)
 
     def recipe_in_favorite(self, obj):
         return obj.favorites.count()
