@@ -158,7 +158,7 @@ class RecipeReadSerializer(serializers.ModelSerializer):
 
 class RecipeCreateSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
-    ingredients = IngredientInRecipeSerializer(many=True, unique=True)
+    ingredients = IngredientInRecipeSerializer(many=True)
     cooking_time = serializers.IntegerField()
     tags = PrimaryKeyRelatedField(many=True, queryset=Tag.objects.all())
     image = Base64ImageField()
@@ -175,6 +175,7 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             "image",
             "text",
         )
+        unique_together = ("ingredients",)
 
     def validate_ingredients(self, ingredients):
         ingredients_set = set()
