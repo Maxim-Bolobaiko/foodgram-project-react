@@ -2,7 +2,6 @@ from django.shortcuts import get_object_or_404
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
-from rest_framework.exceptions import ValidationError
 from rest_framework.fields import SerializerMethodField
 from rest_framework.serializers import PrimaryKeyRelatedField
 
@@ -62,11 +61,11 @@ class FollowingSerializer(UserSerializer):
         if Following.objects.filter(
             follower=follower, following=following
         ).exists():
-            raise ValidationError(
+            raise serializers.ValidationError(
                 detail="Вы уже подписались!", code=status.HTTP_400_BAD_REQUEST
             )
         if follower == following:
-            raise ValidationError(
+            raise serializers.ValidationError(
                 detail="Вы не можете подписаться на самого себя!",
                 code=status.HTTP_400_BAD_REQUEST,
             )
@@ -175,26 +174,29 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
             "image",
             "text",
         )
-        unique_together = ("ingredients",)
 
     def validate_ingredients(self, ingredients):
         ingredients_set = set()
         if not ingredients:
-            raise ValidationError(["Нужно выбрать хотя бы один ингредиент!"])
+            raise serializers.ValidationError(
+                "Нужно выбрать хотя бы один ингредиент!"
+            )
         for ingredient in ingredients:
             ingredient_id = ingredient["ingredient"]["id"]
             if ingredient_id in ingredients_set:
-                raise ValidationError(["Ингредиенты должны быть уникальными!"])
+                raise serializers.ValidationError(
+                    "Ингредиенты должны быть уникальными!"
+                )
             if int(ingredient.get("amount")) < 1:
-                raise ValidationError(
-                    ["Количество ингредиента должно быть больше 0!"]
+                raise serializers.ValidationError(
+                    "Количество ингредиента должно быть больше 0!"
                 )
             ingredients_set.add(ingredient_id)
         return ingredients
 
     def validate_cooking_time(self, cooking_time):
         if cooking_time < 1:
-            raise ValidationError(
+            raise serializers.ValidationError(
                 "Время готовки должно быть не меньше одной минуты!"
             )
         return cooking_time
@@ -202,10 +204,14 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     def validate_tags(self, tags):
         tags_list = []
         if not tags:
-            raise ValidationError("Нужно выбрать хотя бы один тег!")
+            raise serializers.ValidationError(
+                "Нужно выбрать хотя бы один тег!"
+            )
         for tag in tags:
             if tag in tags_list:
-                raise ValidationError("Теги должны быть уникальными!")
+                raise serializers.ValidationError(
+                    "Теги должны быть уникальными!"
+                )
             tags_list.append(tag)
         return tags
 
@@ -271,7 +277,9 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user = data["user"]
         if user.favorites.filter(recipe=data["recipe"]).exists():
-            raise ValidationError("Рецепт уже добавлен в избранное!")
+            raise serializers.ValidationError(
+                "Рецепт уже добавлен в избранное!"
+            )
         return data
 
     def to_representation(self, instance):
@@ -291,7 +299,7 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user = data["user"]
         if user.shopping_cart.filter(recipe=data["recipe"]).exists():
-            raise ValidationError("Рецепт уже добавлен в корзину")
+            raise serializers.ValidationError("Рецепт уже добавлен в корзину")
         return data
 
     def to_representation(self, instance):
