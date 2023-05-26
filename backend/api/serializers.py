@@ -180,14 +180,14 @@ class RecipeCreateSerializer(serializers.ModelSerializer):
     def validate_ingredients(self, ingredients):
         ingredients_set = set()
         if not ingredients:
-            raise ValidationError("Нужно выбрать хотя бы один ингредиент!")
+            raise ValidationError(["Нужно выбрать хотя бы один ингредиент!"])
         for ingredient in ingredients:
             ingredient_id = ingredient["ingredient"]["id"]
             if ingredient_id in ingredients_set:
-                raise ValidationError("Ингредиенты должны быть уникальными!")
+                raise ValidationError(["Ингредиенты должны быть уникальными!"])
             if int(ingredient.get("amount")) < 1:
                 raise ValidationError(
-                    "Количество ингредиента должно быть больше 0!"
+                    ["Количество ингредиента должно быть больше 0!"]
                 )
             ingredients_set.add(ingredient_id)
         return ingredients
